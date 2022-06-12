@@ -1,0 +1,163 @@
+﻿<div class="row d-flex justify-content-center container">
+    <div class="col-md-8">
+        <div class="card-hover-shadow-2x mb-3 card">
+            <div class="card-header-tab card-header">
+                <div class="card-header-title font-size-lg text-capitalize font-weight-normal"><i class="fa fa-tasks"></i>&nbsp;Minhas tarefas</div>
+            </div>
+            <div class="scroll-area-sm">
+                <perfect-scrollbar class="ps-show-limits">
+                    <div style="position: static;" class="ps ps--active-y">
+                        <div class="ps-content">
+                            <i class="fa fa-circle-o-notch fa-spin fa-3x" style="margin: 3em 7.5em" id="loading"></i>
+                            <ul class="list-group list-group-flush" id="task-list"></ul>
+                        </div>
+                    </div>
+                </perfect-scrollbar>
+            </div>
+            <div class="d-block text-right card-footer">
+                <form id="form-add-task">
+                    <div class="input-group mb-3 col-md-12">
+                        <input type="text" class="form-control" name="Descricao" id="Descricao" placeholder="Descrição da tarefa">
+                        <div class="input-group-append">
+                            <button class="btn btn-primary" type="button" id="btn-add-task">
+                                <i class="fa fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@section scripts {
+    <script id="tarefa" type="text/template">
+        <li class="list-group-item {{#isConcluded}}done{{/isConcluded}}" id="task-{{id}}">
+            <div class="todo-indicator bg-primary"></div>
+            <div class="widget-content p-0">
+                <div class="widget-content-wrapper">
+                    <div class="widget-content-left">
+                        <div class="widget-heading">
+                            {{description}}
+                        </div>
+                    </div>
+
+                    <div class="widget-content-right" id="task-{{id}}-actions">
+                        {{#isNew}}
+                        <button class="btn btn-success done-task" data-task="{{id}}"><i class="fa fa-check"></i></button> <!-SO DEVE MOSTRAR QUANDO A TAREFA É NOVA-->
+                        {{/isNew}}
+                        <button class="btn btn-danger delete-task" data-task="{{id}}"><i class="fa fa-trash"></i> </button>
+                    </div>
+
+                </div>
+            </div>
+        </li>
+    </script>
+
+    <script type="text/javascript">
+        const spinner_class = 'fa-circle-o-notch fa-spin';
+        $(document).ready(function () {
+            $('#btn-add-task').attr("disabled", "disabled");
+            $("#Descricao").keyup(function () {
+                if ($(this).val().length >= 6) {
+                    $("#btn-add-task").removeAttr("disabled");
+                } else {
+                    $("#btn-add-task").attr("disabled", "disabled");
+                }
+            });
+        });
+        $('#btn-add-task').on('click', function () {
+
+            var button = $(this);
+            button.find('i').removeClass('fa-plus');
+            button.find('i').addClass(spinner_class);
+            var form = $('#form-add-task');
+
+            $.ajax({
+                method: 'POST',
+                url: 'tarefaslista/create',
+                data: form.serialize()
+            }).then(function (response) {
+                button.find('i').removeClass(spinner_class);
+                button.find('i').addClass('fa-plus');
+                form[0].reset();
+
+                if (response.success) {
+                    var template = $('#tarefa').html();
+                    $('#task-list').append(Mustache.render(template, response.tarefas));
+                }
+                else {
+                    toastr.error('Favor preencher corretamento o campo descrição !!');
+                }
+            });
+        });
+
+        $('#task-list').on('click', '.delete-task', function () {
+            var button = $(this);
+
+            button.find('i').removeClass('fa-trash');
+            button.find('i').addClass(spinner_class);
+            var taskId = button.data('task');
+
+            $.ajax({
+                method: 'POST',
+                url: 'tarefaslista/delete',
+                data: { id: taskId }
+            }).done(function (response) {
+                button.find('i').removeClass(spinner_class);
+                button.find('i').addClass('fa-trash');
+
+                if (response.success) {
+                    $(`#task-${taskId}`).fadeOut(400, function () {
+                        $(`#task-${taskId}`).remove();
+                    });
+                }
+            });
+        });
+
+        $('#task-list').on('click', '.done-task', function () {
+            var button = $(this);
+
+            button.find('i').removeClass('fa-check');
+            button.find('i').addClass(spinner_class);
+            var taskId = button.data('task');
+
+            $.ajax({
+                method: 'POST',
+                url: "tarefaslista/Update",
+                data: { id: taskId }
+            }).then(function (response) {
+                button.find('i').removeClass(spinner_class);
+                button.find('i').addClass('fa-check');
+
+                if (response.success) {
+                    $(`#task-${taskId}`).addClass('done');
+                    $(`#task-${taskId}-actions`).find('.done-task').hide();
+
+                }
+            });
+        });
+
+        $(document).ready(function () {
+            $.ajax({
+                method: 'GET',
+                url: 'tarefaslista/Index'
+            }).then(function (response) {
+                if (response.success) {
+                    var template = $('#tarefa').html();
+
+                    response.list.forEach(item => {
+                        $('#task-list').append(Mustache.render(template, item));
+                    });
+
+                    $('#loading').fadeOut(400, function () {
+                        $(`#loading`).hide();
+                    });
+
+                    $('#task-list').fadeIn('slow');
+
+                }
+            });
+        });
+
+    </script>
+}
